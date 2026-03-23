@@ -1,0 +1,35 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Analyze short text",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "text": "Квантовые вычисления — революционная технология. Я люблю читать книги по вечерам."
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "originalityScore": 0,
+        "aiScore": 0,
+        "plagiatScore": 0,
+        "sentences": []
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Empty text returns 400",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "text": ""
+      },
+      "expectedStatus": 400
+    }
+  ]
+}

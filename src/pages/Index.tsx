@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import Icon from "@/components/ui/icon";
 
+const ANALYZE_URL = "https://functions.poehali.dev/159ff7e7-881d-482d-bfca-168ebc59fc3a";
+
 type SentenceResult = {
   text: string;
   status: "original" | "ai" | "plagiat";
@@ -62,33 +64,48 @@ export default function Index() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     const inputText = text.trim() || DEMO_TEXT;
     setIsAnalyzing(true);
     setProgress(0);
+    setError(null);
 
     let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += Math.random() * 15 + 5;
-      if (currentProgress >= 100) {
-        clearInterval(interval);
-        setProgress(100);
-        const analysisResult = analyzeText(inputText);
-        if (!text.trim()) {
-          analysisResult.sentences = DEMO_SENTENCES;
-          analysisResult.originalityScore = 43;
-          analysisResult.aiScore = 43;
-          analysisResult.plagiatScore = 14;
-        }
-        setResult(analysisResult);
-        setIsAnalyzing(false);
-        setActiveSection("results");
-      } else {
+    progressIntervalRef.current = setInterval(() => {
+      currentProgress += Math.random() * 4 + 1;
+      if (currentProgress < 85) {
         setProgress(currentProgress);
       }
-    }, 120);
+    }, 200);
+
+    try {
+      const res = await fetch(ANALYZE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: inputText }),
+      });
+
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      setProgress(100);
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Ошибка сервера: ${res.status}`);
+      }
+
+      const data: AnalysisResult = await res.json();
+      setResult(data);
+      setActiveSection("results");
+    } catch (e: unknown) {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      setError(e instanceof Error ? e.message : "Неизвестная ошибка");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleReset = () => {
@@ -227,6 +244,13 @@ export default function Index() {
                       <span>Сканирование предложений...</span>
                       <span>ИИ-анализ...</span>
                     </div>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="mt-4 flex items-start gap-2 px-4 py-3 rounded-xl bg-[var(--neon-pink)]/10 border border-[var(--neon-pink)]/30 text-sm text-[var(--neon-pink)]">
+                    <Icon name="AlertCircle" size={16} className="shrink-0 mt-0.5" />
+                    <span>{error}</span>
                   </div>
                 )}
               </div>
